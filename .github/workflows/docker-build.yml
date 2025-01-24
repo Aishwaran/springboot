@@ -3,55 +3,40 @@ name: Deploy to ECS
 on:
   push:
     branches:
-      - main  # Trigger the workflow on push to the main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
-      # Step 1: Checkout the code
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      # Step 2: Set up AWS credentials
-      - name: Configure AWS credentials
+      - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+          aws-region: ap-south-1  # Replace with your region
 
-      # Step 3: Log in to Amazon ECR
+      # Removed the "Get Git Commit SHA" step since we're using latest now
+
       - name: Log in to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
-      # Step 4: Build, tag, and push Docker image to ECR
-      - name: Build, tag, and push Docker image
-        env:
-          REPOSITORY_URI: ${{ secrets.ECR_REPOSITORY_URI }}
         run: |
-          docker build -t $REPOSITORY_URI:latest .
-          docker push $REPOSITORY_URI:latest
+          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
 
-      # Step 5: Deploy to ECS
-      - name: Deploy to ECS
+      - name: Build Docker Image
+        run: docker build -t taskmaster:latest .
+
+      - name: Tag Docker Image
+        run: docker tag taskmaster:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/taskmaster:latest
+
+      - name: Push Docker Image to ECR
+        run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/taskmaster:latest
+
+      - name: Update ECS Service
         run: |
-          # Ensure the ECS_CLUSTER_NAME and ECS_SERVICE_NAME are correctly passed as secrets
-          if [[ -z "${{ secrets.ECS_CLUSTER_NAME }}" || -z "${{ secrets.ECS_SERVICE_NAME }}" ]]; then
-            echo "ECS_CLUSTER_NAME or ECS_SERVICE_NAME not found!"
-            exit 1
-          fi
-
-          # Update ECS service to use the latest task definition with the new image
           aws ecs update-service \
-            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
-            --service ${{ secrets.ECS_SERVICE_NAME }} \
-            --force-new-deployment \
-            --desired-count 1
+            --cluster springboot \
+            --service spring-ser \
+            --force-new-deployment
