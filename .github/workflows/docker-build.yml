@@ -44,7 +44,7 @@ jobs:
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
-          task-definition: my-app  # Use the task definition family name you created
+          task-definition: arn:aws:ecs:ap-south-1:717279733951:task-definition/my-app:1  # Use the task definition family name you created
           service: ${{ secrets.ECS_SERVICE_NAME }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME }}
           wait-for-service-stability: true
