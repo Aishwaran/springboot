@@ -38,19 +38,35 @@ jobs:
         env:
           REPOSITORY_URI: ${{ secrets.ECR_REPOSITORY_URI }}
         run: |
-          # Build the Docker image
+          # Build the Docker image with the latest tag
           docker build -t $REPOSITORY_URI:latest .
           
           # Push the image to ECR with the 'latest' tag
           docker push $REPOSITORY_URI:latest
 
-      # Step 5: Update ECS Service with the latest image
+      # Step 5: Register new task definition revision
+      - name: Register new task definition revision
+        run: |
+          # Create a new revision of the task definition with the latest image
+          aws ecs register-task-definition \
+            --family my-app \
+            --container-definitions "[{
+              \"name\": \"my-app-container\",
+              \"image\": \"${{ secrets.ECR_REPOSITORY_URI }}:latest\",
+              \"memory\": \"512\",
+              \"cpu\": \"256\",
+              \"essential\": true
+            }]"
+
+      # Step 6: Update ECS Service to use the new task definition
       - name: Update ECS Service
         run: |
-          # Update the ECS service to use the 'latest' image in the 'my-app' task definition
+          # Get the latest task definition revision ARN
+          LATEST_TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition my-app | jq -r '.taskDefinition.revision')
+          
+          # Update ECS service with the new task definition revision
           aws ecs update-service \
             --cluster springboot \
             --service spring-ser1 \
             --force-new-deployment \
-            --task-definition my-app \
-            --image ${{ secrets.ECR_REPOSITORY_URI }}:latest
+            --task-definition my-app:$LATEST_TASK_DEFINITION
