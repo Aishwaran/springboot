@@ -33,16 +33,18 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 4: Build Docker image
-      - name: Build Docker image
-        run: docker build -t taskmaster:${{ github.sha }} .
-
-      # Step 5: Tag the Docker image as "latest"
-      - name: Tag Docker image as "latest"
-        run: docker tag taskmaster:${{ github.sha }} ${{ secrets.ECR_REPOSITORY_URI }}:latest
-
-      # Step 6: Push both the unique SHA image and the "latest" tag
-      - name: Push Docker images to ECR
+      # Step 4: Build, tag, and push Docker image
+      - name: Build, tag, and push Docker image
+        env:
+          REPOSITORY_URI: ${{ secrets.ECR_REPOSITORY_URI }}
+          IMAGE_TAG: ${{ github.sha }}  # Tag the image with the commit SHA
         run: |
-          docker push ${{ secrets.ECR_REPOSITORY_URI }}:${{ github.sha }}  # Push the SHA-tagged image
-          docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest 
+          # Build the Docker image
+          docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+          
+          # Also tag the image as "latest"
+          docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
+          
+          # Push both the SHA tag and the "latest" tag to ECR
+          docker push $REPOSITORY_URI:$IMAGE_TAG
+          docker push $REPOSITORY_URI:latest
