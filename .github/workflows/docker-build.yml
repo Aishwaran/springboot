@@ -33,24 +33,16 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 4: Build, tag, and push Docker image to ECR
-      - name: Build, tag, and push Docker image
-        env:
-          IMAGE_TAG: ${{ github.sha }}  # Tag the image with the commit SHA
-          REPOSITORY_URI: ${{ secrets.ECR_REPOSITORY_URI }}
-        run: |
-          # Ensure the IMAGE_TAG is a valid Docker tag by removing invalid characters
-          SANITIZED_IMAGE_TAG=$(echo $IMAGE_TAG | sed 's/[^a-zA-Z0-9._-]/_/g')
-          echo "Building Docker image with tag: $SANITIZED_IMAGE_TAG"
-          docker build -t $REPOSITORY_URI:$SANITIZED_IMAGE_TAG .
-          docker push $REPOSITORY_URI:$SANITIZED_IMAGE_TAG
+      # Step 4: Build Docker image
+      - name: Build Docker image
+        run: docker build -t taskmaster:${{ github.sha }} .
 
-      # # Step 5: Deploy to ECS
-      # - name: Deploy to ECS
-      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      #   with:
-      #     task-definition: ecs-task-definition.json  # Path to your ECS task definition file
-      #     service: ${{ secrets.ECS_SERVICE_NAME }}
-      #     cluster: ${{ secrets.ECS_CLUSTER_NAME }}
-      #     image: ${{ secrets.ECR_REPOSITORY_URI }}:${{ github.sha }}
-      #     wait-for-service-stability: true
+      # Step 5: Tag the Docker image as "latest"
+      - name: Tag Docker image as "latest"
+        run: docker tag taskmaster:${{ github.sha }} ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+      # Step 6: Push both the unique SHA image and the "latest" tag
+      - name: Push Docker images to ECR
+        run: |
+          docker push ${{ secrets.ECR_REPOSITORY_URI }}:${{ github.sha }}  # Push the SHA-tagged image
+          docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest 
