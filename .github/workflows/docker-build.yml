@@ -26,7 +26,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1 # Use your AWS region
+          aws-region: ap-south-1  # Use your AWS region
 
       # Step 3: Log in to Amazon ECR
       - name: Log in to Amazon ECR
@@ -37,14 +37,20 @@ jobs:
       - name: Build, tag, and push Docker image
         env:
           REPOSITORY_URI: ${{ secrets.ECR_REPOSITORY_URI }}
-          IMAGE_TAG: ${{ github.sha }}  # Tag the image with the commit SHA
         run: |
           # Build the Docker image
-          docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+          docker build -t $REPOSITORY_URI:latest .
           
-          # Also tag the image as "latest"
-          docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
-          
-          # Push both the SHA tag and the "latest" tag to ECR
-          docker push $REPOSITORY_URI:$IMAGE_TAG
+          # Push the image to ECR with the 'latest' tag
           docker push $REPOSITORY_URI:latest
+
+      # Step 5: Update ECS Service with the latest image
+      - name: Update ECS Service
+        run: |
+          # Update the ECS service to use the 'latest' image in the 'my-app' task definition
+          aws ecs update-service \
+            --cluster springboot \
+            --service spring-ser1 \
+            --force-new-deployment \
+            --task-definition my-app \
+            --image ${{ secrets.ECR_REPOSITORY_URI }}:latest
