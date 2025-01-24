@@ -40,11 +40,13 @@ jobs:
           docker build -t $REPOSITORY_URI:latest .
           docker push $REPOSITORY_URI:latest
 
-      # Step 5: Deploy to ECS
+      # Step 5: Deploy to ECS using AWS CLI (Deploy existing task definition)
       - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: arn:aws:ecs:ap-south-1:717279733951:task-definition/my-app:1  # Use the task definition family name you created
-          service: ${{ secrets.ECS_SERVICE_NAME }}
-          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
-          wait-for-service-stability: true
+        run: |
+          # Update ECS service to use the existing task definition
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --service ${{ secrets.ECS_SERVICE_NAME }} \
+            --task-definition my-app  # Reference the existing task definition family name
+            --desired-count 1 \
+            --force-new-deployment
