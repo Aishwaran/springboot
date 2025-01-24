@@ -49,30 +49,11 @@ jobs:
           docker push $REPOSITORY_URI:$IMAGE_TAG
           docker push $REPOSITORY_URI:latest
 
-      # Step 5: Register a new ECS Task Definition revision with the latest image
-      - name: Register new ECS Task Definition revision
-        run: |
-          # Register the new task definition with the latest image
-          TASK_DEF=$(aws ecs register-task-definition \
-            --family springboot-task-def \
-            --container-definitions "[{
-              \"name\": \"springboot-container\",
-              \"image\": \"${{ secrets.ECR_REPOSITORY_URI }}:latest\",
-              \"memory\": 512,
-              \"cpu\": 256,
-              \"essential\": true
-            }]")
-          echo "Task definition registered: $TASK_DEF"
-
-      # Step 6: Update ECS Service with the new Task Definition revision
+      # Step 5: Update ECS Service
       - name: Deploy to ECS
         run: |
-          # Get the task definition ARN from the registered task definition
-          TASK_DEF_ARN=$(echo $TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
-          
-          # Update the ECS service to use the new task definition revision
+          # Update the ECS service 
           aws ecs update-service \
             --cluster springboot \
             --service spring-ser1 \
-            --task-definition $TASK_DEF_ARN \
             --force-new-deployment
